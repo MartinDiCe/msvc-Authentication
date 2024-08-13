@@ -1,5 +1,6 @@
 package com.diceprojects.msvcauthentication.services;
 
+import com.diceprojects.msvcauthentication.clients.AuthorizationClient;
 import com.diceprojects.msvcauthentication.exceptions.ErrorHandler;
 import com.diceprojects.msvcauthentication.persistences.dto.AuthResponse;
 import com.diceprojects.msvcauthentication.persistences.dto.LoginRequest;
@@ -22,6 +23,7 @@ public class AuthServiceImpl implements AuthService {
     private final CustomReactiveAuthenticationManager customAuthenticationManager;
     private final JwtUtil jwtUtil;
     private final EntityStatusService entityStatusService;
+    private final AuthorizationClient authorizationClient;
 
     /**
      * Constructor de AuthServiceImpl.
@@ -31,10 +33,11 @@ public class AuthServiceImpl implements AuthService {
      * @param entityStatusService         El servicio para obtener el estado activo desde la configuración.
      */
     public AuthServiceImpl(@Lazy CustomReactiveAuthenticationManager customAuthenticationManager,
-                           JwtUtil jwtUtil, EntityStatusService entityStatusService) {
+                           JwtUtil jwtUtil, EntityStatusService entityStatusService, AuthorizationClient authorizationClient) {
         this.customAuthenticationManager = customAuthenticationManager;
         this.jwtUtil = jwtUtil;
         this.entityStatusService = entityStatusService;
+        this.authorizationClient = authorizationClient;
     }
 
     /**
@@ -45,14 +48,16 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public Mono<AuthResponse> authenticate(LoginRequest loginRequest) {
-        return entityStatusService.obtenerEstadoActivo()
-                .flatMap(activeStatus -> customAuthenticationManager.authenticate(
-                                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()))
-                        .flatMap(authentication -> jwtUtil.generateToken(authentication)
-                                .map(token -> new AuthResponse(authentication.getName(), token, jwtUtil.getExpiryDateFromToken(token))))
-                        .onErrorResume(e -> Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas")))
+        return customAuthenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()))
+                .flatMap(authentication -> jwtUtil.generateToken(authentication)
+                        .flatMap(token -> authorizationClient.getUserByUsername(authentication.getName())
+                                .flatMap(userDetails -> authorizationClient.updateUserToken(userDetails.getId(), token)
+                                        .then(Mono.just(new AuthResponse(authentication.getName(), token, jwtUtil.getExpiryDateFromToken(token))))
+                                )
+                        )
                 )
-                .doOnError(e -> ErrorHandler.handleError("Error de autenticación", e, HttpStatus.INTERNAL_SERVER_ERROR));
+                .onErrorResume(e -> Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas")));
     }
 
 }

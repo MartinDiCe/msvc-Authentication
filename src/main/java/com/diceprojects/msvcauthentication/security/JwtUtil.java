@@ -4,6 +4,7 @@ import com.diceprojects.msvcauthentication.clients.AuthorizationClient;
 import com.diceprojects.msvcauthentication.clients.ConfigurationClient;
 import com.diceprojects.msvcauthentication.exceptions.ErrorHandler;
 import com.diceprojects.msvcauthentication.persistences.dto.ParameterDTO;
+import com.diceprojects.msvcauthentication.persistences.dto.UserDetailsDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -164,4 +165,10 @@ public class JwtUtil implements ApplicationListener<ContextRefreshedEvent> {
         }
         return false;
     }
+
+    public Mono<UserDetailsDTO> getUserFromToken(String token, AuthorizationClient authorizationClient) {
+        String username = getClaimsFromToken(token).getSubject();
+        return authorizationClient.getUserByUsername(username);
+    }
+
 }
