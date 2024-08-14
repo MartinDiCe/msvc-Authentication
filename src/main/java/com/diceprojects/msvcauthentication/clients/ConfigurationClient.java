@@ -1,6 +1,6 @@
 package com.diceprojects.msvcauthentication.clients;
 
-import com.diceprojects.msvcauthentication.persistences.dto.ParameterDTO;
+import com.diceprojects.msvcauthentication.persistences.models.dtos.ParameterDTO;
 import io.netty.handler.logging.LogLevel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;

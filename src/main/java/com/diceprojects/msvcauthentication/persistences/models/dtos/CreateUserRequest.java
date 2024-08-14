@@ -1,4 +1,4 @@
-package com.diceprojects.msvcauthentication.persistences.dto;
+package com.diceprojects.msvcauthentication.persistences.models.dtos;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

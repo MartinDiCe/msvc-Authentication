@@ -32,19 +32,25 @@ public class JwtServerAuthenticationConverter implements ServerAuthenticationCon
      */
     @Override
     public Mono<Authentication> convert(ServerWebExchange exchange) {
-        try {
-            String token = exchange.getRequest().getHeaders().getFirst("Authorization");
-            if (token != null && token.startsWith("Bearer ")) {
-                token = token.substring(7);
-                if (jwtUtil.validateToken(token)) {
-                    String username = jwtUtil.getClaimsFromToken(token).getSubject();
-                    return Mono.just(new UsernamePasswordAuthenticationToken(username, null, null));
-                }
-            }
-            return Mono.empty();
-        } catch (Exception e) {
-            ErrorHandler.handleError("Error converting JWT token", e, HttpStatus.UNAUTHORIZED);
-            return Mono.empty();
-        }
+        return Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst("Authorization"))
+                .filter(token -> token.startsWith("Bearer "))
+                .flatMap(token -> {
+                    String jwtToken = token.substring(7);
+                    return jwtUtil.validateToken(jwtToken)
+                            .flatMap(isValid -> {
+                                if (isValid) {
+                                    String username = jwtUtil.getClaimsFromToken(jwtToken).getSubject();
+                                    Authentication authentication = new UsernamePasswordAuthenticationToken(username, null, null);
+                                    return Mono.just(authentication);
+                                } else {
+                                    return Mono.empty();
+                                }
+                            });
+                })
+                .onErrorResume(e -> {
+                    ErrorHandler.handleError("Error converting JWT token", e, HttpStatus.UNAUTHORIZED);
+                    return Mono.empty();
+                });
     }
+
 }

@@ -2,6 +2,7 @@ package com.diceprojects.msvcauthentication.utils;
 
 import com.diceprojects.msvcauthentication.clients.ConfigurationClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -41,7 +42,8 @@ public class EntityStatusService {
         return configurationClient.getParameterByName("EntityStatus")
                 .flatMap(parameter -> {
                     try {
-                        Map<String, String> statusMap = objectMapper.readValue(parameter.getValue(), Map.class);
+                        Map<String, String> statusMap = objectMapper.readValue(parameter.getValue(), new TypeReference<>() {
+                        });
                         return Mono.justOrEmpty(statusMap.get("status1"));
                     } catch (JsonProcessingException e) {
                         return Mono.error(new RuntimeException("Error al procesar los valores del parámetro", e));

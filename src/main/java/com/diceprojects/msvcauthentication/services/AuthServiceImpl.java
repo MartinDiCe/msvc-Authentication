@@ -1,12 +1,11 @@
 package com.diceprojects.msvcauthentication.services;
 
 import com.diceprojects.msvcauthentication.clients.AuthorizationClient;
-import com.diceprojects.msvcauthentication.exceptions.ErrorHandler;
-import com.diceprojects.msvcauthentication.persistences.dto.AuthResponse;
-import com.diceprojects.msvcauthentication.persistences.dto.LoginRequest;
+import com.diceprojects.msvcauthentication.persistences.models.dtos.AuthResponse;
+import com.diceprojects.msvcauthentication.persistences.models.dtos.LoginRequest;
+import com.diceprojects.msvcauthentication.persistences.models.dtos.UserDetailsDTO;
 import com.diceprojects.msvcauthentication.security.CustomReactiveAuthenticationManager;
 import com.diceprojects.msvcauthentication.security.JwtUtil;
-import com.diceprojects.msvcauthentication.utils.EntityStatusService;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,7 +21,6 @@ public class AuthServiceImpl implements AuthService {
 
     private final CustomReactiveAuthenticationManager customAuthenticationManager;
     private final JwtUtil jwtUtil;
-    private final EntityStatusService entityStatusService;
     private final AuthorizationClient authorizationClient;
 
     /**
@@ -30,13 +28,11 @@ public class AuthServiceImpl implements AuthService {
      *
      * @param customAuthenticationManager El gestor de autenticación reactiva personalizada.
      * @param jwtUtil                     La utilidad JWT para la generación de tokens.
-     * @param entityStatusService         El servicio para obtener el estado activo desde la configuración.
      */
     public AuthServiceImpl(@Lazy CustomReactiveAuthenticationManager customAuthenticationManager,
-                           JwtUtil jwtUtil, EntityStatusService entityStatusService, AuthorizationClient authorizationClient) {
+                           JwtUtil jwtUtil, AuthorizationClient authorizationClient) {
         this.customAuthenticationManager = customAuthenticationManager;
         this.jwtUtil = jwtUtil;
-        this.entityStatusService = entityStatusService;
         this.authorizationClient = authorizationClient;
     }
 
@@ -58,6 +54,24 @@ public class AuthServiceImpl implements AuthService {
                         )
                 )
                 .onErrorResume(e -> Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas")));
+    }
+
+    /**
+     * Valida un token JWT y recupera los detalles del usuario si el token es válido.
+     *
+     * @param token El token JWT a validar.
+     * @return Un {@link Mono} que emite los detalles del usuario si el token es válido.
+     */
+    public Mono<UserDetailsDTO> validateAndGetUser(String token) {
+        return jwtUtil.validateToken(token)
+                .flatMap(isValid -> {
+                    if (isValid) {
+                        return jwtUtil.getUserFromToken(token, authorizationClient)
+                                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado")));
+                    } else {
+                        return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido o expirado"));
+                    }
+                });
     }
 
 }

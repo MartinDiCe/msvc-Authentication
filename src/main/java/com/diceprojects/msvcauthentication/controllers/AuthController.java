@@ -1,13 +1,11 @@
 package com.diceprojects.msvcauthentication.controllers;
 
-import com.diceprojects.msvcauthentication.persistences.dto.AuthResponse;
-import com.diceprojects.msvcauthentication.persistences.dto.LoginRequest;
+import com.diceprojects.msvcauthentication.persistences.models.dtos.AuthResponse;
+import com.diceprojects.msvcauthentication.persistences.models.dtos.LoginRequest;
+import com.diceprojects.msvcauthentication.persistences.models.dtos.UserDetailsDTO;
 import com.diceprojects.msvcauthentication.services.AuthService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 /**
@@ -34,4 +32,17 @@ public class AuthController {
         return authService.authenticate(loginRequest)
                 .map(ResponseEntity::ok);
     }
+
+    /**
+     * Valida un token JWT y devuelve los detalles del usuario.
+     *
+     * @param token El token JWT a validar.
+     * @return Un {@link Mono} que emite los detalles del usuario si el token es válido.
+     */
+    @GetMapping("/validate")
+    public Mono<ResponseEntity<UserDetailsDTO>> validateToken(@RequestHeader("Authorization") String token) {
+        return authService.validateAndGetUser(token)
+                .map(ResponseEntity::ok);
+    }
+
 }
